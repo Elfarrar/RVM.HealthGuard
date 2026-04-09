@@ -1,0 +1,124 @@
+@page "/"
+@using RVM.HealthGuard.Domain.Entities
+@using RVM.HealthGuard.Domain.Enums
+@using RVM.HealthGuard.Domain.Interfaces
+@using RVM.HealthGuard.API.Services
+@inject IMonitoredServiceRepository ServiceRepo
+@inject IServiceIncidentRepository IncidentRepo
+@inject IHealthCheckResultRepository HealthCheckRepo
+@inject UptimeCalculatorService UptimeCalc
+
+<PageTitle>Dashboard - RVM.HealthGuard</PageTitle>
+
+@if (!_loaded)
+{
+    <div class="loading">Loading dashboard...</div>
+}
+else
+{
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">@_services.Count</div>
+            <div class="stat-label">Total Services</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_services.Count(s => s.IsEnabled)</div>
+            <div class="stat-label">Enabled</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_activeIncidents.Count</div>
+            <div class="stat-label">Active Incidents</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_services.Count(s => _latestChecks.ContainsKey(s.Id) && _latestChecks[s.Id].Status == ServiceHealthStatus.Healthy)</div>
+            <div class="stat-label">Healthy</div>
+        </div>
+    </div>
+
+    <h2>Service Status Overview</h2>
+
+    @if (_services.Count == 0)
+    {
+        <div class="empty-state">No services configured yet.</div>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>Response Time</th>
+                    <th>Uptime (24h)</th>
+                    <th>Last Check</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var service in _services)
+                {
+                    var hasCheck = _latestChecks.TryGetValue(service.Id, out var latest);
+                    var uptime = _uptimes.GetValueOrDefault(service.Id, 100.0);
+
+                    <tr>
+                        <td>
+                            @if (!hasCheck)
+                            {
+                                <span class="status-dot status-unknown" title="No data"></span>
+                            }
+                            else if (latest!.Status == ServiceHealthStatus.Healthy)
+                            {
+                                <span class="status-dot status-healthy" title="Healthy"></span>
+                            }
+                            else if (latest!.Status == ServiceHealthStatus.Degraded)
+                            {
+                                <span class="status-dot status-degraded" title="Degraded"></span>
+                            }
+                            else
+                            {
+                                <span class="status-dot status-unhealthy" title="Unhealthy"></span>
+                            }
+                        </td>
+                        <td>@service.Name</td>
+                        <td class="url-cell">@service.Url</td>
+                        <td>@(hasCheck ? $"{latest!.ResponseTimeMs} ms" : "-")</td>
+                        <td>
+                            <span class="@(uptime >= 99 ? "badge badge-success" : uptime >= 95 ? "badge badge-warning" : "badge badge-danger")">
+                                @uptime%
+                            </span>
+                        </td>
+                        <td>@(hasCheck ? latest!.CheckedAt.ToString("yyyy-MM-dd HH:mm:ss") : "-")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private bool _loaded;
+    private List<MonitoredService> _services = [];
+    private List<ServiceIncident> _activeIncidents = [];
+    private Dictionary<Guid, HealthCheckResult> _latestChecks = new();
+    private Dictionary<Guid, double> _uptimes = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _services = await ServiceRepo.GetAllAsync();
+        _activeIncidents = await IncidentRepo.GetActiveAsync();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddHours(-24);
+
+        foreach (var service in _services)
+        {
+            var latest = await HealthCheckRepo.GetLatestByServiceIdAsync(service.Id);
+            if (latest is not null)
+                _latestChecks[service.Id] = latest;
+
+            _uptimes[service.Id] = await UptimeCalc.CalculateUptimePercentAsync(service.Id, from, now);
+        }
+
+        _loaded = true;
+    }
+}

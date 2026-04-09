@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+
+<div class="app-layout">
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h2>RVM.HealthGuard</h2>
+            <span class="sidebar-subtitle">Health Monitor</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li>
+                <NavLink href="/" Match="NavLinkMatch.All">
+                    <span class="nav-icon">&#9673;</span> Dashboard
+                </NavLink>
+            </li>
+            <li>
+                <NavLink href="/services" Match="NavLinkMatch.Prefix">
+                    <span class="nav-icon">&#9881;</span> Services
+                </NavLink>
+            </li>
+            <li>
+                <NavLink href="/incidents" Match="NavLinkMatch.Prefix">
+                    <span class="nav-icon">&#9888;</span> Incidents
+                </NavLink>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <span>RVM Tech &copy; @DateTime.UtcNow.Year</span>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <header class="top-header">
+            <h1>RVM.HealthGuard</h1>
+            <span class="header-label">Health Monitor</span>
+        </header>
+        <main class="page-body">
+            @Body
+        </main>
+    </div>
+</div>

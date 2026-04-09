@@ -28,6 +28,8 @@ try
     // Controllers + OpenAPI
     builder.Services.AddControllers();
     builder.Services.AddOpenApi();
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
 
     // SignalR
     builder.Services.AddSignalR();
@@ -101,6 +103,8 @@ try
 
     // Middleware pipeline
     app.UseForwardedHeaders();
+    app.UseStaticFiles();
+    app.UseAntiforgery();
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseRateLimiter();
@@ -109,6 +113,8 @@ try
 
     // Routes
     app.MapControllers();
+    app.MapRazorComponents<RVM.HealthGuard.API.Components.App>()
+        .AddInteractiveServerRenderMode();
     app.MapHub<HealthStatusHub>("/hubs/health-status").AllowAnonymous();
     app.MapHealthChecks("/health").AllowAnonymous();
 

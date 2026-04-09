@@ -1,0 +1,178 @@
+@page "/services"
+@using RVM.HealthGuard.Domain.Entities
+@using RVM.HealthGuard.Domain.Enums
+@using RVM.HealthGuard.Domain.Interfaces
+@using RVM.HealthGuard.API.Services
+@inject IMonitoredServiceRepository ServiceRepo
+@inject IHealthCheckResultRepository HealthCheckRepo
+@inject UptimeCalculatorService UptimeCalc
+
+<PageTitle>Services - RVM.HealthGuard</PageTitle>
+
+<h2>Monitored Services</h2>
+
+@if (!_loaded)
+{
+    <div class="loading">Loading services...</div>
+}
+else if (_services.Count == 0)
+{
+    <div class="empty-state">No services configured yet.</div>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>URL</th>
+                <th>Interval</th>
+                <th>Timeout</th>
+                <th>Expected Status</th>
+                <th>Enabled</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var service in _services)
+            {
+                <tr>
+                    <td>@service.Name</td>
+                    <td class="url-cell">@service.Url</td>
+                    <td>@(service.CheckIntervalSeconds)s</td>
+                    <td>@(service.TimeoutSeconds)s</td>
+                    <td>@service.ExpectedStatusCode</td>
+                    <td>
+                        <span class="@(service.IsEnabled ? "badge badge-success" : "badge badge-danger")">
+                            @(service.IsEnabled ? "Yes" : "No")
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-sm" @onclick="() => SelectService(service.Id)">
+                            Details
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (_selectedService is not null)
+    {
+        <div class="detail-card">
+            <div class="detail-card-header">
+                <h3>@_selectedService.Name</h3>
+                <button class="btn-sm" @onclick="CloseDetail">Close</button>
+            </div>
+            <p><strong>URL:</strong> @_selectedService.Url</p>
+            <p><strong>Created:</strong> @_selectedService.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</p>
+
+            @if (_detailLoading)
+            {
+                <div class="loading">Loading health checks...</div>
+            }
+            else
+            {
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">@_selectedUptime%</div>
+                        <div class="stat-label">Uptime (24h)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@_selectedAvgResponse ms</div>
+                        <div class="stat-label">Avg Response (24h)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">@_selectedChecks.Count</div>
+                        <div class="stat-label">Checks (24h)</div>
+                    </div>
+                </div>
+
+                <h4>Recent Health Checks (Last 24h)</h4>
+
+                @if (_selectedChecks.Count == 0)
+                {
+                    <div class="empty-state">No health check results in the last 24 hours.</div>
+                }
+                else
+                {
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Response Time</th>
+                                <th>Status Code</th>
+                                <th>Checked At</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var check in _selectedChecks.OrderByDescending(c => c.CheckedAt).Take(50))
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="@GetStatusBadgeClass(check.Status)">
+                                            @check.Status
+                                        </span>
+                                    </td>
+                                    <td>@(check.ResponseTimeMs) ms</td>
+                                    <td>@(check.StatusCode?.ToString() ?? "-")</td>
+                                    <td>@check.CheckedAt.ToString("HH:mm:ss")</td>
+                                    <td class="error-cell">@(check.ErrorMessage ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            }
+        </div>
+    }
+}
+
+@code {
+    private bool _loaded;
+    private bool _detailLoading;
+    private List<MonitoredService> _services = [];
+    private MonitoredService? _selectedService;
+    private List<HealthCheckResult> _selectedChecks = [];
+    private double _selectedUptime;
+    private double _selectedAvgResponse;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _services = await ServiceRepo.GetAllAsync();
+        _loaded = true;
+    }
+
+    private async Task SelectService(Guid serviceId)
+    {
+        _selectedService = _services.FirstOrDefault(s => s.Id == serviceId);
+        if (_selectedService is null) return;
+
+        _detailLoading = true;
+        StateHasChanged();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddHours(-24);
+
+        _selectedChecks = await HealthCheckRepo.GetByServiceIdAsync(serviceId, from, now);
+        _selectedUptime = await UptimeCalc.CalculateUptimePercentAsync(serviceId, from, now);
+        _selectedAvgResponse = await UptimeCalc.CalculateAverageResponseTimeAsync(serviceId, from, now);
+
+        _detailLoading = false;
+    }
+
+    private void CloseDetail()
+    {
+        _selectedService = null;
+        _selectedChecks = [];
+    }
+
+    private static string GetStatusBadgeClass(ServiceHealthStatus status) => status switch
+    {
+        ServiceHealthStatus.Healthy => "badge badge-success",
+        ServiceHealthStatus.Degraded => "badge badge-warning",
+        ServiceHealthStatus.Unhealthy => "badge badge-danger",
+        _ => "badge"
+    };
+}

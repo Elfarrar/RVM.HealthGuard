@@ -1,0 +1,144 @@
+@page "/incidents"
+@using RVM.HealthGuard.Domain.Entities
+@using RVM.HealthGuard.Domain.Enums
+@using RVM.HealthGuard.Domain.Interfaces
+@inject IServiceIncidentRepository IncidentRepo
+@inject IMonitoredServiceRepository ServiceRepo
+
+<PageTitle>Incidents - RVM.HealthGuard</PageTitle>
+
+<h2>Incidents</h2>
+
+@if (!_loaded)
+{
+    <div class="loading">Loading incidents...</div>
+}
+else
+{
+    <h3>Active Incidents (@_activeIncidents.Count)</h3>
+
+    @if (_activeIncidents.Count == 0)
+    {
+        <div class="empty-state">No active incidents. All systems operational.</div>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Type</th>
+                    <th>Started</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var incident in _activeIncidents.OrderByDescending(i => i.StartedAt))
+                {
+                    <tr>
+                        <td>@GetServiceName(incident.MonitoredServiceId)</td>
+                        <td>
+                            <span class="@GetIncidentBadgeClass(incident.Type)">
+                                @incident.Type
+                            </span>
+                        </td>
+                        <td>@incident.StartedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@FormatDuration(DateTime.UtcNow - incident.StartedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <h3>Recent Resolved Incidents (Last 7 Days)</h3>
+
+    @if (_recentIncidents.Count == 0)
+    {
+        <div class="empty-state">No resolved incidents in the last 7 days.</div>
+    }
+    else
+    {
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Type</th>
+                    <th>Started</th>
+                    <th>Resolved</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var incident in _recentIncidents.OrderByDescending(i => i.StartedAt))
+                {
+                    <tr>
+                        <td>@GetServiceName(incident.MonitoredServiceId)</td>
+                        <td>
+                            <span class="@GetIncidentBadgeClass(incident.Type)">
+                                @incident.Type
+                            </span>
+                        </td>
+                        <td>@incident.StartedAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@(incident.ResolvedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-")</td>
+                        <td>
+                            @if (incident.Duration is not null)
+                            {
+                                @FormatDuration(incident.Duration.Value)
+                            }
+                            else if (incident.ResolvedAt is not null)
+                            {
+                                @FormatDuration(incident.ResolvedAt.Value - incident.StartedAt)
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private bool _loaded;
+    private List<ServiceIncident> _activeIncidents = [];
+    private List<ServiceIncident> _recentIncidents = [];
+    private Dictionary<Guid, string> _serviceNames = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var services = await ServiceRepo.GetAllAsync();
+        _serviceNames = services.ToDictionary(s => s.Id, s => s.Name);
+
+        _activeIncidents = await IncidentRepo.GetActiveAsync();
+
+        var now = DateTime.UtcNow;
+        var from = now.AddDays(-7);
+        var allRecent = await IncidentRepo.GetAllAsync(from, now);
+        _recentIncidents = allRecent.Where(i => i.ResolvedAt is not null).ToList();
+
+        _loaded = true;
+    }
+
+    private string GetServiceName(Guid serviceId) =>
+        _serviceNames.GetValueOrDefault(serviceId, "Unknown");
+
+    private static string GetIncidentBadgeClass(IncidentType type) => type switch
+    {
+        IncidentType.Down => "badge badge-danger",
+        IncidentType.Degraded => "badge badge-warning",
+        IncidentType.Timeout => "badge badge-warning",
+        _ => "badge"
+    };
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalDays >= 1)
+            return $"{(int)duration.TotalDays}d {duration.Hours}h {duration.Minutes}m";
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours}h {duration.Minutes}m";
+        return $"{(int)duration.TotalMinutes}m {duration.Seconds}s";
+    }
+}
