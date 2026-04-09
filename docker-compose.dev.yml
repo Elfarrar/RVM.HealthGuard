@@ -1,0 +1,26 @@
+services:
+  rvmhealthguard-api:
+    build:
+      context: .
+      dockerfile: src/RVM.HealthGuard.API/Dockerfile
+    container_name: rvmhealthguard-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=rvmtech-db;Database=rvmhealthguard;Username=rvmtech;Password=${POSTGRES_PASSWORD}
+      - ApiKeys__Keys__0__Key=${API_KEY_0}
+      - ApiKeys__Keys__0__AppId=${API_APP_ID_0}
+      - ApiKeys__Keys__0__Name=${API_APP_NAME_0}
+      - App__PathBase=/healthguard
+    volumes:
+      - app-data:/app/data
+    networks:
+      - rvmtech
+
+volumes:
+  app-data:
+
+networks:
+  rvmtech:
+    external: true

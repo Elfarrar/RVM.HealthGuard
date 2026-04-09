@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - dev
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rvm-healthguard-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_GENERATE_ASPNET_CERTIFICATE: false
+  MSBuildEnableWorkloadResolver: false
+
+jobs:
+  build-and-test:
+    name: Build And Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore RVM.HealthGuard.slnx
+
+      - name: Build
+        run: dotnet build RVM.HealthGuard.slnx --configuration Release --no-restore
+
+      - name: Test
+        shell: bash
+        run: |
+          shopt -s globstar nullglob
+          test_projects=(test/**/*.csproj)
+          if [ ${#test_projects[@]} -eq 0 ]; then
+            echo "No test projects found."
+            exit 0
+          fi
+          for project in "${test_projects[@]}"; do
+            dotnet test "$project" --configuration Release --no-build -m:1 -p:BuildInParallel=false -v minimal
+          done
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API Image
+        run: docker build -f src/RVM.HealthGuard.API/Dockerfile -t rvm-healthguard-api:${{ github.sha }} .

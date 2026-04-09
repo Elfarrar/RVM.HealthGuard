@@ -1,0 +1,38 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## VS Code
+.vscode/
+
+## Rider
+.idea/
+
+## Environment
+.env
+appsettings.*.local.json
+
+## OS
+Thumbs.db
+.DS_Store
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+build/
+bld/
+
+## NuGet
+*.nupkg
+**/packages/*
+project.lock.json
+
+## Data
+*.db
+*.sqlite

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RVM.HealthGuard.API/RVM.HealthGuard.API.csproj" />
+    <Project Path="src/RVM.HealthGuard.Domain/RVM.HealthGuard.Domain.csproj" />
+    <Project Path="src/RVM.HealthGuard.Infrastructure/RVM.HealthGuard.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/RVM.HealthGuard.Test/RVM.HealthGuard.Test.csproj" />
+  </Folder>
+</Solution>
