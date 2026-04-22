@@ -12,6 +12,7 @@ public class HealthCheckWorker(
     IServiceScopeFactory scopeFactory,
     IHttpClientFactory httpClientFactory,
     IHubContext<HealthStatusHub> hubContext,
+    NotifyAlertService notifyAlertService,
     ILogger<HealthCheckWorker> logger) : BackgroundService
 {
     private readonly Dictionary<Guid, DateTime> _nextCheckAt = new();
@@ -122,6 +123,8 @@ public class HealthCheckWorker(
 
             logger.LogWarning("Incident started for {Service}: {Type}", service.Name, incidentType);
 
+            await notifyAlertService.SendIncidentAlertAsync(service.Name, incidentType.ToString(), errorMessage, ct);
+
             await hubContext.Clients.All.SendAsync("IncidentStarted", new
             {
                 ServiceId = service.Id,
@@ -137,6 +140,8 @@ public class HealthCheckWorker(
             await incidentRepo.UpdateAsync(activeIncident, ct);
 
             logger.LogInformation("Incident resolved for {Service}, duration: {Duration}", service.Name, activeIncident.Duration);
+
+            await notifyAlertService.SendResolutionAlertAsync(service.Name, activeIncident.Duration, ct);
 
             await hubContext.Clients.All.SendAsync("IncidentResolved", new
             {

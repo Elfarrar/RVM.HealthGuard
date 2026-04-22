@@ -92,6 +92,7 @@ try
     // Application Services
     builder.Services.AddHttpClient();
     builder.Services.AddScoped<UptimeCalculatorService>();
+    builder.Services.AddSingleton<NotifyAlertService>();
     builder.Services.AddHostedService<HealthCheckWorker>();
 
     var app = builder.Build();
