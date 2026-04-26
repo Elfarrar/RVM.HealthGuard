@@ -1,7 +1,9 @@
 @inherits LayoutComponentBase
 
+<a class="skip-nav" href="#main-content">Pular para o conteúdo</a>
+
 <div class="app-layout">
-    <nav class="sidebar">
+    <nav class="sidebar" aria-label="Menu principal">
         <div class="sidebar-header">
             <h2>RVM.HealthGuard</h2>
             <span class="sidebar-subtitle">Health Monitor</span>
@@ -33,7 +35,7 @@
             <h1>RVM.HealthGuard</h1>
             <span class="header-label">Health Monitor</span>
         </header>
-        <main class="page-body">
+        <main id="main-content" class="page-body" role="main">
             @Body
         </main>
     </div>

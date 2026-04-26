@@ -184,3 +184,11 @@ pre {
     font-size: 0.85rem;
     margin: 0.5rem 0;
 }
+
+/* Skip navigation */
+.skip-nav {
+    position: absolute; left: -9999px; top: 0; z-index: 9999;
+    padding: 0.75rem 1.5rem; background: var(--accent);
+    color: #fff; border-radius: 0 0 0.5rem 0; font-weight: 600; text-decoration: none;
+}
+.skip-nav:focus { left: 0; color: #fff; }
