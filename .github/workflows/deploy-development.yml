@@ -16,7 +16,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy To Development
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: development
 
     steps:
