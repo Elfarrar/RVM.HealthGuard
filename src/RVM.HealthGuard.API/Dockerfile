@@ -7,6 +7,7 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
+COPY nuget.config .
 COPY ["src/RVM.HealthGuard.API/RVM.HealthGuard.API.csproj", "src/RVM.HealthGuard.API/"]
 COPY ["src/RVM.HealthGuard.Domain/RVM.HealthGuard.Domain.csproj", "src/RVM.HealthGuard.Domain/"]
 COPY ["src/RVM.HealthGuard.Infrastructure/RVM.HealthGuard.Infrastructure.csproj", "src/RVM.HealthGuard.Infrastructure/"]
