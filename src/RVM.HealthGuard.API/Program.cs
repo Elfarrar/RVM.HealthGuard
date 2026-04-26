@@ -1,6 +1,7 @@
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using RVM.Common.Security;
 using RVM.HealthGuard.API.Auth;
 using RVM.HealthGuard.API.Health;
 using RVM.HealthGuard.API.Hubs;
@@ -110,6 +111,7 @@ try
         app.UsePathBase(pathBase);
 
     // Middleware pipeline
+    app.UseSecurityHeaders();
     app.UseForwardedHeaders();
     app.UseStaticFiles();
     app.UseAntiforgery();
